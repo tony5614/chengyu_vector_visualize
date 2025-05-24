@@ -5,10 +5,7 @@
   <title>成語向量視覺化</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
-  
-  <!-- 加入 Google Fonts 思源黑體 300 -->
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300&display=swap" rel="stylesheet">
-
   <style>
     body {
       font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
@@ -16,13 +13,11 @@
       text-align: center;
       padding: 20px;
     }
-
     canvas {
       border: 1px solid #ccc;
       display: block;
       margin: 20px auto;
     }
-
     #logContainer {
       margin-top: 20px;
       text-align: left;
@@ -30,7 +25,6 @@
       margin-left: auto;
       margin-right: auto;
     }
-
     #logToggle {
       margin-bottom: 5px;
       cursor: pointer;
@@ -38,7 +32,6 @@
       text-decoration: underline;
       font-size: 14px;
     }
-
     #log {
       white-space: pre-line;
       font-size: 14px;
@@ -49,196 +42,178 @@
 </head>
 <body>
   <h1>成語向量視覺化</h1>
-
   <textarea id="idiomInput" placeholder="每行輸入一個四字成語" rows="4" cols="30">舉一反三</textarea>
   <button onclick="generateVector()">產生向量</button>
   <label>
     <input type="checkbox" id="showAxisLabels" checked>
     顯示座標軸標籤
   </label>
-
   <div id="canvasContainer"></div>
-
   <div id="logContainer">
     <div id="logToggle" onclick="toggleLog()">顯示除錯資訊</div>
     <div id="log"></div>
   </div>
-
   <script>
     const shengmuMap = "b,p,m,f,d,t,n,l,g,k,h,j,q,x,zh,ch,sh,r,z,c,s,y,w".split(',');
     const yunmuMap = "a,o,e,i,u,v,ai,ei,ao,ou,an,en,ang,eng,ong,er".split(',');
 
-    let vector = null;
-let first = "";
-let last = "";
+    let vectors = [];
+    let idiomLabels = [];
+    let pinyinPairs = [];
+    let hoveredChain = [];
 
-function setup() {
-  pixelDensity(2); // 提升 Retina 清晰度
-  createCanvas(400, 400).parent("canvasContainer");
-  textAlign(CENTER);
-  textFont('Noto Sans TC');
-  textSize(10); // 預設較細字體
-}
-
-function draw() {
-  background(245);
-  fill(100);
-  stroke(180);
-  strokeWeight(1);
-
-  let showLabels = document.getElementById("showAxisLabels").checked;
-
-// X 軸
-line(50, height - 50, width - 50, height - 50);
-textAlign(CENTER);
-
-for (let i = 0; i < shengmuMap.length; i++) {
-  let x = map(i, 0, shengmuMap.length - 1, 50, width - 50);
-  line(x, height - 55, x, height - 45);
-  if (showLabels) {
-    textSize(9);
-    text(shengmuMap[i], x, height - 30);
-  }
-}
-
-  // Y 軸
-  line(50, 50, 50, height - 50);
-  textAlign(RIGHT);
-// 設定上下邊界
-let topMargin = 50;
-let bottomMargin = height - 50;
-let totalHeight = bottomMargin - topMargin;
-let stepY = totalHeight / (yunmuMap.length - 1);
-
-for (let j = 0; j < yunmuMap.length; j++) {
-  let y = bottomMargin - j * stepY; // 從下往上畫
-  line(45, y, 55, y);
-  if (showLabels) {
-    textSize(10);
-    text(yunmuMap[j], 40, y + 3);
-  }
-}
-
-if (vectors.length > 0) {
-  for (let i = 0; i < vectors.length; i++) {
-    let [x1, y1, x2, y2] = vectors[i];
-    let [first, last] = idiomLabels[i];
-
-    stroke(0);
-    strokeWeight(1);
-    fill(50);
-    line(x1, y1, x2, y2);
-
-    // 畫箭頭
-    let angle = atan2(y2 - y1, x2 - x1);
-    let arrowSize = 8;
-    push();
-    translate(x2, y2);
-    rotate(angle);
-    fill(0);
-    noStroke();
-    triangle(0, 0, -arrowSize, arrowSize / 2, -arrowSize, -arrowSize / 2);
-    pop();
-
-    fill(50);
-    stroke(0);
-    ellipse(x1, y1, 4, 4);
-    ellipse(x2, y2, 4, 4);
-
-    textSize(12);
-    textAlign(CENTER);
-    text(first, x1, y1 - 10);
-    text(last, x2, y2 - 10);
-  }
-}else {
-    textAlign(CENTER);
-    textSize(12);
-    text("請輸入成語並按下「產生向量」", width / 2, height / 2);
-  }
-}
-
-
-let vectors = []; // 改成多向量陣列
-let idiomLabels = []; // 對應每條向量的首尾文字
-
-function generateVector() {
-  const logDiv = document.getElementById("log");
-  logDiv.innerText = "按鈕被點擊了";
-
-  const idiomLines = document.getElementById("idiomInput").value
-    .trim()
-    .split('\n')
-    .map(s => s.trim())
-    .filter(s => s.length === 4);
-
-  if (idiomLines.length === 0) {
-    alert("請輸入至少一個四字成語（每行一個）");
-    return;
-  }
-
-  vectors = [];
-  idiomLabels = [];
-  let debugMsg = "";
-
-  idiomLines.forEach(idiom => {
-    const first = idiom[0];
-    const last = idiom[3];
-
-    const firstPinyinArray = pinyinPro.pinyin(first, { toneType: 'num', type: 'array' });
-    const lastPinyinArray = pinyinPro.pinyin(last, { toneType: 'num', type: 'array' });
-
-    const firstPinyin = firstPinyinArray[0];
-    const lastPinyin = lastPinyinArray[0];
-
-    const parsePinyin = (p) => {
-      const match = p.match(/^([bpmfdtnlgkhjqxrzcsyw]{1,2}?)([aeiouüv]+[i]?[u]?[n]?[g]?)(\d)$/);
-      if (!match) {
-        console.log("無法解析拼音：", p);
-        return null;
-      }
-      return { shengmu: match[1] || '_', yunmu: match[2], tone: parseInt(match[3]) };
-    };
-
-    const f = parsePinyin(firstPinyin);
-    const l = parsePinyin(lastPinyin);
-
-    if (!f || !l) {
-      debugMsg += `【錯誤】拼音解析失敗：${idiom}\n`;
-      return;
+    function setup() {
+      pixelDensity(2);
+      createCanvas(400, 400).parent("canvasContainer");
+      textAlign(CENTER);
+      textFont('Noto Sans TC');
+      textSize(10);
     }
 
-    const getIndex = (arr, val) => arr.indexOf(val) === -1 ? 0 : arr.indexOf(val);
-    const fIndex = getIndex(shengmuMap, f.shengmu);
-    const lIndex = getIndex(shengmuMap, l.shengmu);
-    const fX = map(fIndex, 0, shengmuMap.length - 1, 50, width - 50);
-    const lX = map(lIndex, 0, shengmuMap.length - 1, 50, width - 50);
+    function draw() {
+      background(245);
+      stroke(180);
+      strokeWeight(1);
+      let showLabels = document.getElementById("showAxisLabels").checked;
 
-    const topMargin = 50;
-    const bottomMargin = height - 50;
-    const totalHeight = bottomMargin - topMargin;
-    const stepY = totalHeight / (yunmuMap.length - 1);
+      line(50, height - 50, width - 50, height - 50);
+      textAlign(CENTER);
+      for (let i = 0; i < shengmuMap.length; i++) {
+        let x = map(i, 0, shengmuMap.length - 1, 50, width - 50);
+        line(x, height - 55, x, height - 45);
+        if (showLabels) text(shengmuMap[i], x, height - 30);
+      }
 
-    const fY = bottomMargin - getIndex(yunmuMap, f.yunmu) * stepY;
-    const lY = bottomMargin - getIndex(yunmuMap, l.yunmu) * stepY;
+      line(50, 50, 50, height - 50);
+      textAlign(RIGHT);
+      let topMargin = 50;
+      let bottomMargin = height - 50;
+      let totalHeight = bottomMargin - topMargin;
+      let stepY = totalHeight / (yunmuMap.length - 1);
 
-    vectors.push([fX, fY, lX, lY]);
-    idiomLabels.push([first, last]);
+      for (let j = 0; j < yunmuMap.length; j++) {
+        let y = bottomMargin - j * stepY;
+        line(45, y, 55, y);
+        if (showLabels) text(yunmuMap[j], 40, y + 3);
+      }
 
-    debugMsg += `成語：${idiom}\n首字：${first} → ${firstPinyin}（${f.shengmu}, ${f.yunmu}, ${f.tone}）\n尾字：${last} → ${lastPinyin}（${l.shengmu}, ${l.yunmu}, ${l.tone}）\n\n`;
-  });
+      hoveredChain = [];
+      for (let i = 0; i < vectors.length; i++) {
+        const [x1, y1, x2, y2] = vectors[i];
+        if (dist(mouseX, mouseY, (x1 + x2) / 2, (y1 + y2) / 2) < 10) {
+          hoveredChain = getChainFromIndex(i);
+          break;
+        }
+      }
 
-  logDiv.innerText = debugMsg;
-}
+      for (let i = 0; i < vectors.length; i++) {
+        const [x1, y1, x2, y2] = vectors[i];
+        const [first, last] = idiomLabels[i];
+        const isHovered = hoveredChain.includes(i);
+
+        stroke(isHovered ? 'red' : 0);
+        fill(isHovered ? 'red' : 50);
+        strokeWeight(1);
+        line(x1, y1, x2, y2);
+
+        let angle = atan2(y2 - y1, x2 - x1);
+        push();
+        translate(x2, y2);
+        rotate(angle);
+        noStroke();
+        triangle(0, 0, -8, 4, -8, -4);
+        pop();
+
+        stroke(isHovered ? 'red' : 0);
+        fill(isHovered ? 'red' : 50);
+        ellipse(x1, y1, 4, 4);
+        ellipse(x2, y2, 4, 4);
+
+        textSize(12);
+        textAlign(CENTER);
+        text(first, x1, y1 - 10);
+        text(last, x2, y2 - 10);
+      }
+    }
+
+    function getChainFromIndex(index) {
+      const chain = [];
+      const visited = new Set();
+      let queue = [index];
+
+      while (queue.length) {
+        let current = queue.shift();
+        if (visited.has(current)) continue;
+        visited.add(current);
+        chain.push(current);
+
+        const currentLast = pinyinPairs[current].last;
+        for (let i = 0; i < pinyinPairs.length; i++) {
+          if (!visited.has(i) && pinyinPairs[i].first === currentLast) {
+            queue.push(i);
+          }
+        }
+      }
+      return chain;
+    }
+
+    function generateVector() {
+      const logDiv = document.getElementById("log");
+      const idiomLines = document.getElementById("idiomInput").value.trim().split('\n').map(s => s.trim()).filter(s => s.length === 4);
+      if (idiomLines.length === 0) {
+        alert("請輸入至少一個四字成語（每行一個）");
+        return;
+      }
+
+      vectors = [];
+      idiomLabels = [];
+      pinyinPairs = [];
+      let debugMsg = "";
+
+      idiomLines.forEach(idiom => {
+        const first = idiom[0];
+        const last = idiom[3];
+        const firstPinyin = pinyinPro.pinyin(first, { toneType: 'num' });
+        const lastPinyin = pinyinPro.pinyin(last, { toneType: 'num' });
+
+        const parsePinyin = p => {
+          const match = p.match(/^([a-z]{1,3}?)([aeiouüv]+[i]?[u]?[n]?[g]?)(\d)$/);
+          if (!match) return null;
+          return { shengmu: match[1], yunmu: match[2], tone: parseInt(match[3]) };
+        };
+
+        const f = parsePinyin(firstPinyin);
+        const l = parsePinyin(lastPinyin);
+        if (!f || !l) return;
+
+        const getIndex = (arr, val) => arr.indexOf(val) === -1 ? 0 : arr.indexOf(val);
+        const fIndex = getIndex(shengmuMap, f.shengmu);
+        const lIndex = getIndex(shengmuMap, l.shengmu);
+        const fX = map(fIndex, 0, shengmuMap.length - 1, 50, width - 50);
+        const lX = map(lIndex, 0, shengmuMap.length - 1, 50, width - 50);
+
+        const topMargin = 50;
+        const bottomMargin = height - 50;
+        const totalHeight = bottomMargin - topMargin;
+        const stepY = totalHeight / (yunmuMap.length - 1);
+        const fY = bottomMargin - getIndex(yunmuMap, f.yunmu) * stepY;
+        const lY = bottomMargin - getIndex(yunmuMap, l.yunmu) * stepY;
+
+        vectors.push([fX, fY, lX, lY]);
+        idiomLabels.push([first, last]);
+        pinyinPairs.push({ first: firstPinyin, last: lastPinyin });
+
+        debugMsg += `成語：${idiom}\n首字：${first} → ${firstPinyin}（${f.shengmu}, ${f.yunmu}, ${f.tone}）\n尾字：${last} → ${lastPinyin}（${l.shengmu}, ${l.yunmu}, ${l.tone}）\n\n`;
+      });
+
+      logDiv.innerText = debugMsg;
+    }
+
     function toggleLog() {
       const log = document.getElementById("log");
       const toggle = document.getElementById("logToggle");
-      if (log.style.display === "none") {
-        log.style.display = "block";
-        toggle.innerText = "隱藏除錯資訊";
-      } else {
-        log.style.display = "none";
-        toggle.innerText = "顯示除錯資訊";
-      }
+      log.style.display = log.style.display === "none" ? "block" : "none";
+      toggle.innerText = log.style.display === "none" ? "顯示除錯資訊" : "隱藏除錯資訊";
     }
   </script>
 </body>
