@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>成語向量視覺化</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.10.0/dist/pinyin-pro.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      display: block;
+      margin: 20px auto;
+    }
+    #log {
+      margin-top: 20px;
+      white-space: pre-line;
+      font-size: 14px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>成語向量視覺化</h1>
+  <input type="text" id="idiomInput" placeholder="輸入四字成語" maxlength="4">
+  <button onclick="generateVector()">產生向量</button>
+  <div id="log"></div>
+
+  <script>
+    let vector = null;
+
+    function setup() {
+      createCanvas(400, 400);
+      textAlign(CENTER);
+      textSize(14);
+    }
+
+    function draw() {
+      background(245);
+      fill(100);
+
+      if (vector) {
+        stroke(0);
+        strokeWeight(2);
+        fill(50);
+        let [x1, y1, x2, y2] = vector;
+
+        line(x1, y1, x2, y2);
+        ellipse(x1, y1, 8, 8);
+        ellipse(x2, y2, 8, 8);
+        text("首字", x1, y1 - 10);
+        text("尾字", x2, y2 - 10);
+      } else {
+        text("請輸入成語並按下「產生向量」", width / 2, height / 2);
+      }
+    }
+
+    function generateVector() {
+      console.log("按鈕被點擊了");
+      const logDiv = document.getElementById("log");
+      logDiv.innerText = "按鈕被點擊了";
+
+      const idiom = document.getElementById("idiomInput").value.trim();
+      if (idiom.length !== 4) {
+        alert("請輸入四字成語");
+        return;
+      }
+
+      const first = idiom[0];
+      const last = idiom[3];
+
+      const firstPinyin = pinyinPro.pinyin(first, { toneType: 'number', type: 'array' })[0];
+      const lastPinyin = pinyinPro.pinyin(last, { toneType: 'number', type: 'array' })[0];
+
+      const parsePinyin = (p) => {
+        const match = p.match(/^([bpmfdtnlgkhjqxrzcsyw]?)([aeiouüv]+[i]?[u]?[n]?[g]?)(\d)$/);
+        if (!match) return null;
+        return { shengmu: match[1] || '_', yunmu: match[2], tone: parseInt(match[3]) };
+      };
+
+      const f = parsePinyin(firstPinyin);
+      const l = parsePinyin(lastPinyin);
+
+      if (!f || !l) {
+        alert("拼音解析失敗");
+        return;
+      }
+
+      const debugMsg = `成語：${idiom}
+首字：${first} → ${firstPinyin} → 聲母: ${f.shengmu}, 韻母: ${f.yunmu}, 聲調: ${f.tone}
+尾字：${last} → ${lastPinyin} → 聲母: ${l.shengmu}, 韻母: ${l.yunmu}, 聲調: ${l.tone}`;
+      console.log(debugMsg);
+      logDiv.innerText = debugMsg;
+
+      const shengmuMap = "b,p,m,f,d,t,n,l,g,k,h,j,q,x,r,z,c,s,y,w,_".split(',');
+      const yunmuMap = "a,o,e,i,u,v,ai,ei,ao,ou,an,en,ang,eng,ong,er".split(',');
+
+      const getIndex = (arr, val) => arr.indexOf(val) === -1 ? 0 : arr.indexOf(val);
+
+      const fX = getIndex(shengmuMap, f.shengmu) * 15 + 50;
+      const fY = getIndex(yunmuMap, f.yunmu) * 10 + 50;
+
+      const lX = getIndex(shengmuMap, l.shengmu) * 15 + 50;
+      const lY = getIndex(yunmuMap, l.yunmu) * 10 + 50;
+
+      vector = [fX, fY, lX, lY];
+    }
+  </script>
+</body>
+</html>
