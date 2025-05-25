@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>成語向量視覺化</title>
+  <title>成語向量</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300&display=swap" rel="stylesheet">
@@ -37,20 +37,50 @@
       color: #333;
       display: none;
     }
+    #mainContainer {
+      display: flex;
+      flex-direction: row; /* 左右排列 inputContainer 與 rightContainer */
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    #inputContainer {
+      display: flex;
+      flex-direction: column; /* 讓按鈕、label、textarea 垂直排列 */
+      gap: 10px;
+    }
+
+    #rightContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-grow: 1;
+    }
   </style>
 </head>
 <body>
   <h1>成語向量視覺化</h1>
-  <textarea id="idiomInput" placeholder="每行輸入一個四字成語" rows="4" cols="30">舉一反三</textarea>
-  <button onclick="generateVector()">產生向量</button>
-  <label>
-    <input type="checkbox" id="showAxisLabels" checked>
-    顯示座標軸標籤
-  </label>
-  <div id="canvasContainer"></div>
-  <div id="logContainer">
-    <div id="logToggle" onclick="toggleLog()">顯示除錯資訊</div>
-    <div id="log"></div>
+  <div id="mainContainer">
+    <div id="inputContainer">
+      <label>
+        <input type="checkbox" id="showAxisLabels" checked>
+        顯示座標軸標籤
+      </label>
+      <button onclick="generateVector()">產生向量</button>
+      <textarea id="idiomInput" placeholder="每行輸入一個四字成語" rows="20" cols="10">舉一反三</textarea>
+      <div id="chainListContainer">
+        <h3>接龍鍊列表</h3>
+        <div id="chainList" style="max-height: 300px; overflow-y: auto; font-size: 14px; text-align: left;"></div>
+      </div>
+    </div>
+
+    <div id="rightContainer">
+      <div id="canvasContainer"></div>
+      <div id="logContainer">
+        <div id="logToggle" onclick="toggleLog()">顯示除錯資訊</div>
+        <div id="log"></div>
+      </div>
+    </div>
   </div>
   <script>
     const shengmuMap = "_,b,p,m,f,d,t,n,l,g,k,h,j,q,x,zh,ch,sh,r,z,c,s,y,w".split(',');
@@ -61,13 +91,64 @@
       "ang", "eng", "ing", "ong",
       "ia", "ua", "uo", "uai", "iao", "ian", "uan", "iang", "uang", "iong",
       "ue" // 確保包含 ue
-    ];let vectors = [];
+    ];
+    let vectors = [];
     let idiomLabels = [];
     let pinyinPairs = [];
     let hoveredChain = [];
     let idioms = [];
     let lastLoggedChain = ""; // 新增在 global 區域
-    let lastHoveredIndex = -1;
+    let lastHoveredIndex = -1;   
+    let allChains = [];
+    let selectedChainIndex = -1;
+
+    function buildAllChains() {
+      allChains = [];
+      const visited = new Set();
+
+      function dfs(index, path) {
+        const currentLast = pinyinPairs[index].last;
+        let extended = false;
+        for (let i = 0; i < pinyinPairs.length; i++) {
+          if (!path.includes(i) && pinyinPairs[i].first === currentLast) {
+            dfs(i, [...path, i]);
+            extended = true;
+          }
+        }
+        if (!extended) allChains.push(path);
+      }
+
+      for (let i = 0; i < pinyinPairs.length; i++) {
+        dfs(i, [i]);
+      }
+
+      renderChainList();
+    }
+    
+    function renderChainList() {
+      const container = document.getElementById("chainList");
+      container.innerHTML = "";
+
+      allChains.forEach((chain, idx) => {
+        const idiomStr = chain.map(i => idioms[i]).join(" → ");
+        const item = document.createElement("div");
+        item.textContent = idiomStr;
+        item.style.cursor = "pointer";
+        item.style.padding = "4px";
+        item.style.borderBottom = "1px solid #ccc";
+
+        if (idx === selectedChainIndex) {
+          item.style.backgroundColor = "#eef";
+        }
+
+        item.onclick = () => {
+          selectedChainIndex = idx;
+          hoveredChain = chain;
+          renderChainList();
+        };
+        container.appendChild(item);
+      });
+    }
     
     function windowResized() {
       const container = document.getElementById("canvasContainer");
@@ -148,23 +229,32 @@
         }
       }
 
-      hoveredChain = [];
-      for (let i = 0; i < vectors.length; i++) {
-        const [x1, y1, x2, y2] = vectors[i];
-        const idiom = idioms[i];
-        const hovered = isHoveredOverLine(x1, y1, x2, y2);
 
-        if (hovered) {
-          if (i !== lastHoveredIndex) {
-            console.log(`滑鼠座標：(${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
-            console.log(`線段 ${i}（${idiom}）：(${x1.toFixed(1)}, ${y1.toFixed(1)}) → (${x2.toFixed(1)}, ${y2.toFixed(1)}), hovered=${hovered}`);
-            console.log("觸發接龍鍊來自線段：", i, "成語：", idiom);
-            lastHoveredIndex = i;
+
+      if (selectedChainIndex !== -1 && allChains[selectedChainIndex]) {
+        hoveredChain = allChains[selectedChainIndex];
+      } else {
+        hoveredChain = [];
+        for (let i = 0; i < vectors.length; i++) {
+          const [x1, y1, x2, y2] = vectors[i];
+          const idiom = idioms[i];
+          const hovered = isHoveredOverLine(x1, y1, x2, y2);
+
+          if (hovered) {
+            if (i !== lastHoveredIndex) {
+              console.log(`滑鼠座標：(${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
+              console.log(`線段 ${i}（${idiom}）：(${x1.toFixed(1)}, ${y1.toFixed(1)}) → (${x2.toFixed(1)}, ${y2.toFixed(1)}), hovered=${hovered}`);
+              console.log("觸發接龍鍊來自線段：", i, "成語：", idiom);
+              lastHoveredIndex = i;
+            }
+            hoveredChain = getChainFromIndex(i);
+            break;
           }
-          hoveredChain = getChainFromIndex(i);
-          break;
         }
       }
+
+
+
       
       for (let i = 0; i < vectors.length; i++) {
         const [x1, y1, x2, y2] = vectors[i];
@@ -172,8 +262,9 @@
         const isHovered = hoveredChain.includes(i);
 
         stroke(isHovered ? 'red' : 0);
-        fill(isHovered ? 'red' : 50);
+        fill(isHovered ? 'red' : 200);
         strokeWeight(1);
+        stroke(100,100,100 , 100); // 藍色 + 透明度（0~255，數字越小越淡）
         line(x1, y1, x2, y2);
 
         let angle = atan2(y2 - y1, x2 - x1);
@@ -184,20 +275,20 @@
         triangle(0, 0, -8, 4, -8, -4);
         pop();
 
-        stroke(isHovered ? 'red' : 0);
-        fill(isHovered ? 'red' : 50);
+        stroke(isHovered ? 'red' : 200);
+        fill(isHovered ? 'red' : 200);
         ellipse(x1, y1, 4, 4);
         ellipse(x2, y2, 4, 4);
 
         textSize(12);
         textAlign(CENTER);
-
+        fill(200);
         
         text(first, x1, y1 - 10); // 提高一點，讓座標不重疊
         text(last, x2, y2 - 10);
 
         textSize(10);
-        fill(100);
+
         text(`(${Math.round(x1)}, ${Math.round(y1)})`, x1, y1 + 12);
         text(`(${Math.round(x2)}, ${Math.round(y2)})`, x2, y2 + 12);
       }
@@ -255,14 +346,14 @@
         const lastPinyin = pinyinPro.pinyin(last, { toneType: 'num' });
 
         const parsePinyin = (p) => {
-          const match = p.match(/^([bpmfdtnlgkhjqxrzcsyw]{1,2}?)([a-züv]+)(\d)$/i);
+          const match = p.match(/^([bpmfdtnlgkhjqxrzcsyw]{1,2})?([a-züv]+)(\d)$/i);
           if (!match) {
             console.log("無法解析拼音：", p);
             return null;
           }
 
-          let shengmu = match[1] || '_';
-          let yunmu = match[2].replace('v', 'ü');
+          let shengmu = match[1] ? match[1].toLowerCase() : "_";
+          let yunmu = match[2].replace('v', 'ü').toLowerCase();
           if (yunmu === 'ue') yunmu = 'ü' + 'e';
           let tone = parseInt(match[3]);
 
@@ -295,6 +386,7 @@
       });
 
       logDiv.innerText = debugMsg;
+      buildAllChains(); // 產生所有接龍鏈
     }
 
     function toggleLog() {
