@@ -53,7 +53,7 @@
     <div id="log"></div>
   </div>
   <script>
-    const shengmuMap = "b,p,m,f,d,t,n,l,g,k,h,j,q,x,zh,ch,sh,r,z,c,s,y,w".split(',');
+    const shengmuMap = "_,b,p,m,f,d,t,n,l,g,k,h,j,q,x,zh,ch,sh,r,z,c,s,y,w".split(',');
     const yunmuMap = [
       "a", "o", "e", "i", "u", "ü",
       "ai", "ei", "ui", "ao", "ou", "iu",
@@ -67,15 +67,25 @@
     let hoveredChain = [];
     let idioms = [];
     let lastLoggedChain = ""; // 新增在 global 區域
-
+    let lastHoveredIndex = -1;
+    
+    function windowResized() {
+      const container = document.getElementById("canvasContainer");
+      const newWidth = container.offsetWidth;
+      const newHeight = windowHeight - 250;
+      resizeCanvas(newWidth, newHeight);
+    }
     function setup() {
       pixelDensity(2);
-      createCanvas(400, 400).parent("canvasContainer");
+      const container = document.getElementById("canvasContainer");
+      const initialWidth = container.offsetWidth;
+      const initialHeight = windowHeight - 250;
+      createCanvas(initialWidth, initialHeight).parent("canvasContainer");
       textAlign(CENTER);
       textFont('Noto Sans TC');
       textSize(10);
     }
-    function isHoveredOverLine(x1, y1, x2, y2, threshold = 10) {
+    function isHoveredOverLine(x1, y1, x2, y2, threshold = 5) {
       const px = mouseX;
       const py = mouseY;
 
@@ -115,6 +125,10 @@
         let x = map(i, 0, shengmuMap.length - 1, 50, width - 50);
         line(x, height - 55, x, height - 45);
         if (showLabels) text(shengmuMap[i], x, height - 30);
+        if (showLabels) {
+          textSize(8);
+          text(x.toFixed(0), x, height - 15);
+        }
       }
 
       line(50, 50, 50, height - 50);
@@ -128,17 +142,30 @@
         let y = bottomMargin - j * stepY;
         line(45, y, 55, y);
         if (showLabels) text(yunmuMap[j], 40, y + 3);
+        if (showLabels) {
+          textSize(8);
+          text(y.toFixed(0), 25, y + 3);
+        }
       }
 
       hoveredChain = [];
       for (let i = 0; i < vectors.length; i++) {
         const [x1, y1, x2, y2] = vectors[i];
-        if (isHoveredOverLine(x1, y1, x2, y2)) {
+        const idiom = idioms[i];
+        const hovered = isHoveredOverLine(x1, y1, x2, y2);
+
+        if (hovered) {
+          if (i !== lastHoveredIndex) {
+            console.log(`滑鼠座標：(${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
+            console.log(`線段 ${i}（${idiom}）：(${x1.toFixed(1)}, ${y1.toFixed(1)}) → (${x2.toFixed(1)}, ${y2.toFixed(1)}), hovered=${hovered}`);
+            console.log("觸發接龍鍊來自線段：", i, "成語：", idiom);
+            lastHoveredIndex = i;
+          }
           hoveredChain = getChainFromIndex(i);
           break;
         }
       }
-
+      
       for (let i = 0; i < vectors.length; i++) {
         const [x1, y1, x2, y2] = vectors[i];
         const [first, last] = idiomLabels[i];
@@ -164,8 +191,15 @@
 
         textSize(12);
         textAlign(CENTER);
-        text(first, x1, y1 - 10);
+
+        
+        text(first, x1, y1 - 10); // 提高一點，讓座標不重疊
         text(last, x2, y2 - 10);
+
+        textSize(10);
+        fill(100);
+        text(`(${Math.round(x1)}, ${Math.round(y1)})`, x1, y1 + 12);
+        text(`(${Math.round(x2)}, ${Math.round(y2)})`, x2, y2 + 12);
       }
 
       if (hoveredChain.length > 0) {
@@ -235,7 +269,6 @@
           return { shengmu, yunmu, tone };
         };
 
-        idioms.push(idiom);
         const f = parsePinyin(firstPinyin);
         const l = parsePinyin(lastPinyin);
         if (!f || !l) return;
@@ -253,6 +286,7 @@
         const fY = bottomMargin - getIndex(yunmuMap, f.yunmu) * stepY;
         const lY = bottomMargin - getIndex(yunmuMap, l.yunmu) * stepY;
 
+        idioms.push(idiom);
         vectors.push([fX, fY, lX, lY]);
         idiomLabels.push([first, last]);
         pinyinPairs.push({ first: firstPinyin, last: lastPinyin });
