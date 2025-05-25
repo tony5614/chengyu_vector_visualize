@@ -75,7 +75,11 @@
       textFont('Noto Sans TC');
       textSize(10);
     }
-
+    function isHoveredOverLine(x1, y1, x2, y2, threshold = 10) {
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+      return dist(mouseX, mouseY, midX, midY) < threshold;
+    }
     function draw() {
       background(245);
       stroke(180);
@@ -84,6 +88,8 @@
 
       line(50, height - 50, width - 50, height - 50);
       textAlign(CENTER);
+      stroke(180);
+      fill(0);
       for (let i = 0; i < shengmuMap.length; i++) {
         let x = map(i, 0, shengmuMap.length - 1, 50, width - 50);
         line(x, height - 55, x, height - 45);
@@ -106,7 +112,7 @@
       hoveredChain = [];
       for (let i = 0; i < vectors.length; i++) {
         const [x1, y1, x2, y2] = vectors[i];
-        if (dist(mouseX, mouseY, (x1 + x2) / 2, (y1 + y2) / 2) < 10) {
+        if (isHoveredOverLine(x1, y1, x2, y2)) {
           hoveredChain = getChainFromIndex(i);
           break;
         }
