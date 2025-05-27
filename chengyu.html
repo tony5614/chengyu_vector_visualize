@@ -101,7 +101,30 @@
     let lastHoveredIndex = -1;   
     let allChains = [];
     let selectedChainIndex = -1;
+    let prevHoveredIndex = -1;
+    
+    function mouseMoved() {
+      if (mouseX < 0 || mouseY < 0 || mouseX > width || mouseY > height) return;
 
+      const currentHovered = getHoveredIndex();
+      if (currentHovered !== prevHoveredIndex) {
+        hoveredIndex = currentHovered;
+        hoveredChain = getChainFromIndex(hoveredIndex);
+        redraw();
+        prevHoveredIndex = currentHovered;
+      }
+    }
+    
+    
+    function getHoveredIndex() {
+      for (let i = 0; i < vectors.length; i++) {
+        const [x1, y1, x2, y2] = vectors[i];
+        if (isHoveredOverLine(x1, y1, x2, y2)) {
+          return i;
+        }
+      }
+      return -1;
+    }
     function buildAllChains() {
       allChains = [];
       const visited = new Set();
@@ -157,7 +180,7 @@
       resizeCanvas(newWidth, newHeight);
     }
     function setup() {
-      pixelDensity(2);
+      pixelDensity(1);
       const container = document.getElementById("canvasContainer");
       const initialWidth = container.offsetWidth;
       const initialHeight = windowHeight - 250;
@@ -165,6 +188,7 @@
       textAlign(CENTER);
       textFont('Noto Sans TC');
       textSize(10);
+      noLoop();
     }
     function isHoveredOverLine(x1, y1, x2, y2, threshold = 5) {
       const px = mouseX;
@@ -326,7 +350,7 @@
           ellipse(x1, y1, 4, 4);
           ellipse(x2, y2, 4, 4);
 
-          textSize(16);
+          textSize(18);
           textAlign(CENTER);
           fill(isHovered ? 'red' : 200);
           
@@ -363,6 +387,9 @@ function getChainFromIndex(index) {
   let longestChain = [];
 
   function dfs(currentIdx, path, visited) {
+    const node = pinyinPairs[currentIdx];
+    if (!node) return; // 防止 index 對應不到節點
+  
     visited.add(currentIdx);
     path.push(currentIdx);
 
@@ -449,6 +476,8 @@ function getChainFromIndex(index) {
       });
 
       logDiv.innerText = debugMsg;
+      
+      redraw();
       buildAllChains(); // 產生所有接龍鏈
     }
 
