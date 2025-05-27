@@ -17,25 +17,10 @@
       display: block;
       margin: 20px auto;
     }
-    #logContainer {
-      margin-top: 20px;
-      text-align: left;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    #logToggle {
-      margin-bottom: 5px;
-      cursor: pointer;
-      color: #007bff;
-      text-decoration: underline;
-      font-size: 14px;
-    }
     #log {
       white-space: pre-line;
       font-size: 14px;
       color: #333;
-      display: none;
     }
     #mainContainer {
       display: flex;
@@ -77,7 +62,6 @@
     <div id="rightContainer">
       <div id="canvasContainer"></div>
       <div id="logContainer">
-        <div id="logToggle" onclick="toggleLog()">顯示除錯資訊</div>
         <div id="log"></div>
       </div>
     </div>
@@ -98,10 +82,12 @@
     let hoveredChain = [];
     let idioms = [];
     let lastLoggedChain = ""; // 新增在 global 區域
+    let chainIdioms = "";
     let lastHoveredIndex = -1;   
     let allChains = [];
     let selectedChainIndex = -1;
     let prevHoveredIndex = -1;
+    let needsRedraw = true;
     
     function mouseMoved() {
       if (mouseX < 0 || mouseY < 0 || mouseX > width || mouseY > height) return;
@@ -110,7 +96,8 @@
       if (currentHovered !== prevHoveredIndex) {
         hoveredIndex = currentHovered;
         hoveredChain = getChainFromIndex(hoveredIndex);
-        redraw();
+        needsRedraw = true;
+
         prevHoveredIndex = currentHovered;
       }
     }
@@ -188,7 +175,7 @@
       textAlign(CENTER);
       textFont('Noto Sans TC');
       textSize(10);
-      noLoop();
+
     }
     function isHoveredOverLine(x1, y1, x2, y2, threshold = 5) {
       const px = mouseX;
@@ -217,167 +204,173 @@
       return distToLine < threshold;
     }
     function draw() {
-      background(245);
-      stroke(180);
-      strokeWeight(1);
-      let showLabels = document.getElementById("showAxisLabels").checked;
+      if(needsRedraw) {
+        needsRedraw = false;
+        background(245);
+        stroke(180);
+        strokeWeight(1);
+        let showLabels = document.getElementById("showAxisLabels").checked;
 
-      line(50, height - 50, width - 50, height - 50);
-      textAlign(CENTER);
-      stroke(180);
-      fill(0);
-      for (let i = 0; i < shengmuMap.length; i++) {
-        let x = map(i, 0, shengmuMap.length - 1, 50, width - 50);
-        line(x, height - 55, x, height - 45);
-        if (showLabels) text(shengmuMap[i], x, height - 30);
-        if (showLabels) {
-          textSize(8);
-          text(x.toFixed(0), x, height - 15);
-        }
-      }
-
-      line(50, 50, 50, height - 50);
-      textAlign(RIGHT);
-      let topMargin = 50;
-      let bottomMargin = height - 50;
-      let totalHeight = bottomMargin - topMargin;
-      let stepY = totalHeight / (yunmuMap.length - 1);
-
-      for (let j = 0; j < yunmuMap.length; j++) {
-        let y = bottomMargin - j * stepY;
-        line(45, y, 55, y);
-        if (showLabels) text(yunmuMap[j], 40, y + 3);
-        if (showLabels) {
-          textSize(8);
-          text(y.toFixed(0), 25, y + 3);
-        }
-      }
-
-
-
-      if (selectedChainIndex !== -1 && allChains[selectedChainIndex]) {
-        hoveredChain = allChains[selectedChainIndex];
-      } else {
-        hoveredChain = [];
-        for (let i = 0; i < vectors.length; i++) {
-          const [x1, y1, x2, y2] = vectors[i];
-          const idiom = idioms[i];
-          const hovered = isHoveredOverLine(x1, y1, x2, y2);
-
-          if (hovered) {
-            if (i !== lastHoveredIndex) {
-              console.log(`滑鼠座標：(${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
-              console.log(`線段 ${i}（${idiom}）：(${x1.toFixed(1)}, ${y1.toFixed(1)}) → (${x2.toFixed(1)}, ${y2.toFixed(1)}), hovered=${hovered}`);
-              console.log("觸發接龍鍊來自線段：", i, "成語：", idiom);
-              lastHoveredIndex = i;
-            }
-            hoveredChain = getChainFromIndex(i);
-            break;
+        line(50, height - 50, width - 50, height - 50);
+        textAlign(CENTER);
+        stroke(180);
+        fill(0);
+        for (let i = 0; i < shengmuMap.length; i++) {
+          let x = map(i, 0, shengmuMap.length - 1, 50, width - 50);
+          line(x, height - 55, x, height - 45);
+          if (showLabels) text(shengmuMap[i], x, height - 30);
+          if (showLabels) {
+            textSize(8);
+            text(x.toFixed(0), x, height - 15);
           }
         }
-      }
 
+        line(50, 50, 50, height - 50);
+        textAlign(RIGHT);
+        let topMargin = 50;
+        let bottomMargin = height - 50;
+        let totalHeight = bottomMargin - topMargin;
+        let stepY = totalHeight / (yunmuMap.length - 1);
 
-
-      //先畫出 isHovered = false
-      for (let i = 0; i < vectors.length; i++) {
-        const [x1, y1, x2, y2] = vectors[i];
-        const [first, last] = idiomLabels[i];
-        const isHovered = hoveredChain.includes(i);
-        if(isHovered == true)
-        {
-          continue;
+        for (let j = 0; j < yunmuMap.length; j++) {
+          let y = bottomMargin - j * stepY;
+          line(45, y, 55, y);
+          if (showLabels) text(yunmuMap[j], 40, y + 3);
+          if (showLabels) {
+            textSize(8);
+            text(y.toFixed(0), 25, y + 3);
+          }
         }
-        else
-        {        
-          stroke(isHovered ? 'red' : 0);
-          fill(isHovered ? 'red' : 200);
-          strokeWeight(1);
-          stroke(isHovered ? 'red' : 200,isHovered ? 'red' : 200,isHovered ? 'red' : 200 , isHovered ? 'red' : 200); // 藍色 + 透明度（0~255，數字越小越淡）
-          line(x1, y1, x2, y2);
 
-          let angle = atan2(y2 - y1, x2 - x1);
-          push();
-          translate(x2, y2);
-          rotate(angle);
-          noStroke();
-          triangle(0, 0, -8, 4, -8, -4);
-          pop();
 
-          stroke(isHovered ? 'red' : 200);
-          fill(isHovered ? 'red' : 200);
-          ellipse(x1, y1, 4, 4);
-          ellipse(x2, y2, 4, 4);
 
-          textSize(12);
-          textAlign(CENTER);
-          fill(isHovered ? 'red' : 200);
-          
-          text(first, x1, y1 - 10); // 提高一點，讓座標不重疊
-          text(last, x2, y2 - 10);
+        if (selectedChainIndex !== -1 && allChains[selectedChainIndex]) {
+          hoveredChain = allChains[selectedChainIndex];
+        } else {
+          hoveredChain = [];
+          for (let i = 0; i < vectors.length; i++) {
+            const [x1, y1, x2, y2] = vectors[i];
+            const idiom = idioms[i];
+            const hovered = isHoveredOverLine(x1, y1, x2, y2);
 
-          textSize(10);
-
-          text(`(${Math.round(x1)}, ${Math.round(y1)})`, x1, y1 + 12);
-          text(`(${Math.round(x2)}, ${Math.round(y2)})`, x2, y2 + 12);
+            if (hovered) {
+              if (i !== lastHoveredIndex) {
+                //console.log(`滑鼠座標：(${mouseX.toFixed(1)}, ${mouseY.toFixed(1)})`);
+                //console.log(`線段 ${i}（${idiom}）：(${x1.toFixed(1)}, ${y1.toFixed(1)}) → (${x2.toFixed(1)}, ${y2.toFixed(1)}), hovered=${hovered}`);
+                //console.log("觸發接龍鍊來自線段：", i, "成語：", idiom);
+                lastHoveredIndex = i;
+              }
+              hoveredChain = getChainFromIndex(i);
+              break;
+            }
+          }
         }
-      }
 
 
-      //再畫 isHovered = true, 才可以蓋在上面
-      for (let i = 0; i < vectors.length; i++) {
-        const [x1, y1, x2, y2] = vectors[i];
-        const [first, last] = idiomLabels[i];
-        const isHovered = hoveredChain.includes(i);
-        if(isHovered == true)
-        {          
-          stroke(isHovered ? 'red' : 0);
-          fill(isHovered ? 'red' : 200);
-          strokeWeight(1);
-          stroke(isHovered ? 'red' : 200,isHovered ? 'red' : 200,isHovered ? 'red' : 200 , isHovered ? 'red' : 200); // 藍色 + 透明度（0~255，數字越小越淡）
-          line(x1, y1, x2, y2);
 
-          let angle = atan2(y2 - y1, x2 - x1);
-          push();
-          translate(x2, y2);
-          rotate(angle);
-          noStroke();
-          triangle(0, 0, -8, 4, -8, -4);
-          pop();
+        //先畫出 isHovered = false
+        for (let i = 0; i < vectors.length; i++) {
+          const [x1, y1, x2, y2] = vectors[i];
+          const [first, last] = idiomLabels[i];
+          const isHovered = hoveredChain.includes(i);
+          if(isHovered == true)
+          {
+            continue;
+          }
+          else
+          {        
+            stroke(isHovered ? 'red' : 0);
+            fill(isHovered ? 'red' : 200);
+            strokeWeight(1);
+            stroke(isHovered ? 'red' : 200,isHovered ? 'red' : 200,isHovered ? 'red' : 200 , isHovered ? 'red' : 200); // 藍色 + 透明度（0~255，數字越小越淡）
+            line(x1, y1, x2, y2);
 
-          stroke(isHovered ? 'red' : 200);
-          fill(isHovered ? 'red' : 200);
-          ellipse(x1, y1, 4, 4);
-          ellipse(x2, y2, 4, 4);
+            let angle = atan2(y2 - y1, x2 - x1);
+            push();
+            translate(x2, y2);
+            rotate(angle);
+            noStroke();
+            triangle(0, 0, -8, 4, -8, -4);
+            pop();
 
-          textSize(18);
-          textAlign(CENTER);
-          fill(isHovered ? 'red' : 200);
-          
-          text(first, x1, y1 - 10); // 提高一點，讓座標不重疊
-          text(last, x2, y2 - 10);
+            stroke(isHovered ? 'red' : 200);
+            fill(isHovered ? 'red' : 200);
+            ellipse(x1, y1, 4, 4);
+            ellipse(x2, y2, 4, 4);
 
-          textSize(10);
+            textSize(12);
+            textAlign(CENTER);
+            fill(isHovered ? 'red' : 200);
+            
+            text(first, x1, y1 - 10); // 提高一點，讓座標不重疊
+            text(last, x2, y2 - 10);
 
-          text(`(${Math.round(x1)}, ${Math.round(y1)})`, x1, y1 + 12);
-          text(`(${Math.round(x2)}, ${Math.round(y2)})`, x2, y2 + 12);
+            textSize(10);
+
+            text(`(${Math.round(x1)}, ${Math.round(y1)})`, x1, y1 + 12);
+            text(`(${Math.round(x2)}, ${Math.round(y2)})`, x2, y2 + 12);
+          }
         }
-        else
-        {
-          continue;
-        }
-      }
 
 
-      if (hoveredChain.length > 0) {
-        const chainIdioms = hoveredChain.map(index => idioms[index]).join(" → ");
-        if (chainIdioms !== lastLoggedChain) {
-          console.log("接龍鍊：", chainIdioms);
-          lastLoggedChain = chainIdioms;
+        //再畫 isHovered = true, 才可以蓋在上面
+        for (let i = 0; i < vectors.length; i++) {
+          const [x1, y1, x2, y2] = vectors[i];
+          const [first, last] = idiomLabels[i];
+          const isHovered = hoveredChain.includes(i);
+          if(isHovered == true)
+          {          
+            stroke(isHovered ? 'red' : 0);
+            fill(isHovered ? 'red' : 200);
+            strokeWeight(1);
+            stroke(isHovered ? 'red' : 200,isHovered ? 'red' : 200,isHovered ? 'red' : 200 , isHovered ? 'red' : 200); // 藍色 + 透明度（0~255，數字越小越淡）
+            line(x1, y1, x2, y2);
+
+            let angle = atan2(y2 - y1, x2 - x1);
+            push();
+            translate(x2, y2);
+            rotate(angle);
+            noStroke();
+            triangle(0, 0, -8, 4, -8, -4);
+            pop();
+
+            stroke(isHovered ? 'red' : 200);
+            fill(isHovered ? 'red' : 200);
+            ellipse(x1, y1, 4, 4);
+            ellipse(x2, y2, 4, 4);
+
+            textSize(18);
+            textAlign(CENTER);
+            fill(isHovered ? 'red' : 200);
+            
+            text(first, x1, y1 - 10); // 提高一點，讓座標不重疊
+            text(last, x2, y2 - 10);
+
+            textSize(10);
+
+            text(`(${Math.round(x1)}, ${Math.round(y1)})`, x1, y1 + 12);
+            text(`(${Math.round(x2)}, ${Math.round(y2)})`, x2, y2 + 12);
+            
+            
+          }
+          else
+          {
+            continue;
+          }
         }
-      } else {
-        lastLoggedChain = ""; // 如果沒有 hover 到，清空記錄
-      }
+
+
+        if (hoveredChain.length > 0) {
+          chainIdioms = hoveredChain.map(index => idioms[index]).join(" → ");
+          if (chainIdioms !== lastLoggedChain) {          
+            const logDiv = document.getElementById("log");
+            logDiv.innerHTML = `<pre>\n===== 接龍路徑 =====\n${chainIdioms}\n</pre>`;
+            lastLoggedChain = chainIdioms;
+          }
+        } else {
+          lastLoggedChain = ""; // 如果沒有 hover 到，清空記錄
+        }
+      }  
     }
 
 
@@ -427,7 +420,7 @@ function getChainFromIndex(index) {
       idiomLabels = [];
       pinyinPairs = [];
       idioms = [];
-      let debugMsg = "";
+      //let debugMsg = "";
 
       idiomLines.forEach(idiom => {
         const first = idiom[0];
@@ -472,21 +465,16 @@ function getChainFromIndex(index) {
         idiomLabels.push([first, last]);
         pinyinPairs.push({ first: firstPinyin, last: lastPinyin });
 
-        debugMsg += `成語：${idiom}\n首字：${first} → ${firstPinyin}（${f.shengmu}, ${f.yunmu}, ${f.tone}）\n尾字：${last} → ${lastPinyin}（${l.shengmu}, ${l.yunmu}, ${l.tone}）\n\n`;
+        //debugMsg += `成語：${idiom}\n首字：${first} → ${firstPinyin}（${f.shengmu}, ${f.yunmu}, ${f.tone}）\n尾字：${last} → ${lastPinyin}（${l.shengmu}, ${l.yunmu}, ${l.tone}）\n\n`;
       });
 
-      logDiv.innerText = debugMsg;
+      //logDiv.innerText = debugMsg;
       
       redraw();
       buildAllChains(); // 產生所有接龍鏈
     }
 
-    function toggleLog() {
-      const log = document.getElementById("log");
-      const toggle = document.getElementById("logToggle");
-      log.style.display = log.style.display === "none" ? "block" : "none";
-      toggle.innerText = log.style.display === "none" ? "顯示除錯資訊" : "隱藏除錯資訊";
-    }
+
   </script>
 </body>
 </html>
